@@ -1,17 +1,39 @@
 import random
+import tkinter as tk
+from tkinter import messagebox
 
-class Minesweeper:
-    SIZE = 10  # Size of the game board
-    BOMBS = 15  # Number of bombs
+class MinesweeperGUI:
+    SIZE = 10  # Size of the game board (10x10)
+    BOMBS = 15  # Total number of bombs on the board
 
-    def __init__(self):
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Minesweeper")
         self.board = [['-' for _ in range(self.SIZE)] for _ in range(self.SIZE)]
         self.revealed = [[False for _ in range(self.SIZE)] for _ in range(self.SIZE)]
         self.remaining_cells = self.SIZE * self.SIZE - self.BOMBS
         self.game_over = False
+        self.buttons = [[None for _ in range(self.SIZE)] for _ in range(self.SIZE)]
+        self.create_widgets()
         self.place_bombs()
 
+    def create_widgets(self):
+        # Create buttons for the game board
+        for i in range(self.SIZE):
+            for j in range(self.SIZE):
+                btn = tk.Button(self.root, width=3, height=1, command=lambda x=i, y=j: self.on_click(x, y))
+                btn.grid(row=i, column=j)
+                self.buttons[i][j] = btn
+
+        # Add restart and exit buttons
+        restart_btn = tk.Button(self.root, text="Restart", command=self.restart_game)
+        restart_btn.grid(row=self.SIZE, column=0, columnspan=self.SIZE//2)
+
+        exit_btn = tk.Button(self.root, text="Exit", command=self.root.quit)
+        exit_btn.grid(row=self.SIZE, column=self.SIZE//2, columnspan=self.SIZE//2)
+
     def place_bombs(self):
+        # Randomly place bombs on the board
         bombs_placed = 0
         while bombs_placed < self.BOMBS:
             row = random.randint(0, self.SIZE - 1)
@@ -21,17 +43,19 @@ class Minesweeper:
                 bombs_placed += 1
 
     def count_adjacent_bombs(self, x, y):
+        # Count the number of bombs surrounding the given cell (x, y)
         count = 0
         for i in range(-1, 2):
             for j in range(-1, 2):
                 if i == 0 and j == 0:
-                    continue  # Skip the current cell
+                    continue
                 new_x, new_y = x + i, y + j
                 if 0 <= new_x < self.SIZE and 0 <= new_y < self.SIZE and self.board[new_x][new_y] == 'X':
                     count += 1
         return count
 
     def reveal_cell(self, x, y):
+        # Reveal the cell at (x, y) and update the UI
         if self.revealed[x][y] or self.game_over:
             return
 
@@ -39,10 +63,14 @@ class Minesweeper:
 
         if self.board[x][y] == 'X':
             self.game_over = True
+            self.buttons[x][y].config(text='X', bg='red')
+            self.show_all_bombs()
+            messagebox.showinfo("Game Over", "You hit a bomb!")
             return
 
         adjacent_bombs = self.count_adjacent_bombs(x, y)
         self.board[x][y] = str(adjacent_bombs) if adjacent_bombs > 0 else ' '
+        self.buttons[x][y].config(text=self.board[x][y], state='disabled')
 
         if adjacent_bombs == 0:
             for i in range(-1, 2):
@@ -51,56 +79,36 @@ class Minesweeper:
                     if 0 <= new_x < self.SIZE and 0 <= new_y < self.SIZE:
                         self.reveal_cell(new_x, new_y)
 
-    def print_board(self):
-        print("   ", end='')
-        for i in range(self.SIZE):
-            print(f"{i} ", end='')
-        print()
+        self.remaining_cells -= 1
+        if self.remaining_cells == 0:
+            messagebox.showinfo("Congratulations", "You won!")
+            self.game_over = True
 
+    def on_click(self, x, y):
+        # Handle button click
+        if not self.game_over:
+            self.reveal_cell(x, y)
+
+    def show_all_bombs(self):
+        # Reveal all bombs on the board when the game is over
         for i in range(self.SIZE):
-            print(f"{i}  ", end='')
             for j in range(self.SIZE):
-                if self.revealed[i][j]:
-                    print(f"{self.board[i][j]} ", end='')
-                else:
-                    print("- ", end='')
-            print()
+                if self.board[i][j] == 'X':
+                    self.buttons[i][j].config(text='X', bg='red')
 
-    def play(self):
-        print("Welcome to Minesweeper!")
-        self.print_board()
+    def restart_game(self):
+        # Restart the game
+        self.board = [['-' for _ in range(self.SIZE)] for _ in range(self.SIZE)]
+        self.revealed = [[False for _ in range(self.SIZE)] for _ in range(self.SIZE)]
+        self.remaining_cells = self.SIZE * self.SIZE - self.BOMBS
+        self.game_over = False
+        self.place_bombs()
+        for i in range(self.SIZE):
+            for j in range(self.SIZE):
+                self.buttons[i][j].config(text='', bg='SystemButtonFace', state='normal')
 
-        while self.remaining_cells > 0 and not self.game_over:
-            try:
-                x, y = map(int, input("Enter coordinates (x y): ").split())
-                if not (0 <= x < self.SIZE and 0 <= y < self.SIZE):
-                    print("Invalid input. Coordinates must be within bounds.")
-                    continue
-                if self.revealed[x][y]:
-                    print("Cell already revealed. Try again.")
-                    continue
-
-                self.reveal_cell(x, y)
-                if self.board[x][y] == 'X':
-                    break
-                else:
-                    self.remaining_cells -= 1
-                    if self.remaining_cells == 0:
-                        print("Congratulations! You won!")
-                        self.print_board()
-                    else:
-                        self.print_board()
-            except ValueError:
-                print("Invalid input. Please enter two numbers.")
-
-        if self.game_over:
-            print("Game Over! You hit a bomb.")
-            for i in range(self.SIZE):
-                for j in range(self.SIZE):
-                    if self.board[i][j] == 'X':
-                        self.revealed[i][j] = True
-            self.print_board()
-
+# Start the game
 if __name__ == "__main__":
-    game = Minesweeper()
-    game.play()
+    root = tk.Tk()
+    game = MinesweeperGUI(root)
+    root.mainloop()
